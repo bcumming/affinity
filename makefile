@@ -8,8 +8,13 @@ ifeq ($(PE_ENV),INTEL)
 	flags=-openmp
 endif
 
-affinity: affinity_openmp.c
-	cc $(flags) affinity_openmp.c -o affinity
+all : affinity.omp affinity.mpi
+
+affinity.omp: affinity_openmp.c
+	cc $(flags) affinity_openmp.c -o affinity.omp
+
+affinity.mpi: affinity_mpi.c
+	cc $(flags) affinity_mpi.c -o affinity.mpi
 
 clean:
 	rm -rf affinity
