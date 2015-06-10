@@ -1,22 +1,21 @@
+flags=-std=c++11
 ifeq ($(PE_ENV),GNU)
-	flags=-fopenmp
-endif
-ifeq ($(PE_ENV),CRAY)
-	flags=
+	flags+=-fopenmp
 endif
 ifeq ($(PE_ENV),INTEL)
-	flags=-openmp
+	flags+=-openmp
 endif
 
-all : affinity.omp affinity.mpi
+all : test.omp test.mpi
 
-affinity.omp: affinity_openmp.c
-	cc $(flags) affinity_openmp.c -o affinity.omp
+test.omp: test_omp.cpp
+	CC $(flags) test_omp.cpp -o test.omp
 
-affinity.mpi: affinity_mpi.c
-	cc $(flags) affinity_mpi.c -o affinity.mpi
+test.mpi: test_mpi.cpp
+	CC $(flags) test_mpi.cpp -o test.mpi
 
 clean:
-	rm -rf affinity
+	rm -rf test.omp
+	rm -rf test.mpi
 
 
