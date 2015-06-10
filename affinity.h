@@ -25,11 +25,17 @@ static std::vector<int> get_affinity() {
     auto cpu_count = CPU_COUNT(&cpu_set_mask);
 
     std::vector<int> cores;
+    cores.reserve(cpu_count);
 
     for(auto i=0; i<CPU_SETSIZE && cores.size()<cpu_count; ++i) {
         if(CPU_ISSET(i, &cpu_set_mask)) {
             cores.push_back(i);
         }
+    }
+
+    if(cores.size() != cpu_count) {
+        std::cerr << "error: core count mismatch" << std::endl;
+        exit(1);
     }
 
     return cores;

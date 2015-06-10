@@ -34,13 +34,14 @@ int main(int argc, char **argv) {
     int mpi_size;
     check_mpi_call( MPI_Comm_size(MPI_COMM_WORLD, &mpi_size));
     check_mpi_call( MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank));
+    const int mpi_root = 0;
 
     auto hostname = get_hostname();
 
     auto num_threads = omp_get_max_threads();
     std::vector<std::string> strings(num_threads);
 
-    if(mpi_rank==0) {
+    if(mpi_rank==mpi_root) {
         std::cout << "affinity test for " << mpi_size << " MPI ranks" << std::endl;
     }
     #pragma omp parallel
@@ -62,32 +63,32 @@ int main(int argc, char **argv) {
           << std::endl;
     }
     auto message = s.str();
-    int message_length = message.size();
+    // add 1 for the terminating \0
+    int message_length = message.size() + 1;
 
     std::vector<int> message_lengths(mpi_size);
     check_mpi_call(
         MPI_Gather( &message_length,     1, MPI_INT,
                     &message_lengths[0], 1, MPI_INT,
-                    0, MPI_COMM_WORLD)
+                    mpi_root, MPI_COMM_WORLD)
     );
 
-    if(mpi_rank==0) {
+    if(mpi_rank==mpi_root) {
         std::cout << message;
         for(auto i=1; i<mpi_size; ++i) {
-            std::vector<char> remote_msg(message_lengths[i]+1);
+            std::vector<char> remote_msg(message_lengths[i]);
             MPI_Status status;
             check_mpi_call(
                 MPI_Recv( &remote_msg[0], message_lengths[i], MPI_CHAR,
                           i, i, MPI_COMM_WORLD, &status)
             );
-            remote_msg[message_lengths[i]] = '\0';
             std::cout << &remote_msg[0];
         }
     }
     else {
         check_mpi_call(
             MPI_Send( message.c_str(), message_length, MPI_CHAR,
-                      0, mpi_rank, MPI_COMM_WORLD)
+                      mpi_root, mpi_rank, MPI_COMM_WORLD)
         );
     }
 
