@@ -24,7 +24,7 @@ int main(void) {
 
     for(auto i=0; i<num_threads; ++i) {
         std::cout << "thread " << std::setw(3) << i
-                  << " : " << strings[i]
+                  << " on cores [" << strings[i] << "]"
                   << std::endl;
     }
 }

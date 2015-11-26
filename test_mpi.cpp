@@ -56,11 +56,17 @@ int main(int argc, char **argv) {
     }
 
     std::stringstream s;
-    s << "rank " << std::setw(6) << mpi_rank << " @ " << hostname << std::endl;
-    for(auto i=0; i<num_threads; ++i) {
-        s << "  thread " << std::setw(3) << i
-          << " : " << strings[i]
-          << std::endl;
+    s << "rank " << std::setw(6) << mpi_rank << " @ " << hostname;
+    if(num_threads==1) {
+        s << " on cores [" << strings[0] << "]" << std::endl;
+    }
+    else {
+        s << std::endl;
+        for(auto i=0; i<num_threads; ++i) {
+            s << "  thread " << std::setw(3) << i
+              << " on cores [" << strings[i] << "]"
+              << std::endl;
+        }
     }
     auto message = s.str();
     // add 1 for the terminating \0
