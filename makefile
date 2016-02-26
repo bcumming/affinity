@@ -1,5 +1,6 @@
 # the mpi compiler has to be set using an environment variable CC
 flags=-fopenmp -std=c++11
+CC=CC
 
 all : test.omp test.mpi
 
