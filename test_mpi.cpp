@@ -42,8 +42,22 @@ int main(int argc, char **argv) {
     std::vector<std::string> strings(num_threads);
 
     if(mpi_rank==mpi_root) {
-        std::cout << "affinity test for " << mpi_size << " MPI ranks" << std::endl;
+        //std::cout << "affinity test for " << mpi_size << " MPI ranks" << std::endl;
+
+        // MPI_Get_version:
+        int mpiversion, mpisubversion;
+        MPI_Get_version( &mpiversion, &mpisubversion );
+        printf( "Jacobi %d MPI-%d.%d process(es) with %d OpenMP-%u thread(s)/process\n",
+            mpi_size, mpiversion, mpisubversion, 
+            omp_get_max_threads(), _OPENMP );
+
+        // MPI_Get_library_version:
+        int resultlen = -1;
+        char mpilibversion[MPI_MAX_LIBRARY_VERSION_STRING];
+        MPI_Get_library_version(mpilibversion, &resultlen);
+        printf("MPI_Get_library_version === %s\n", mpilibversion);
     }
+
     #pragma omp parallel
     {
         auto cores = get_affinity();
