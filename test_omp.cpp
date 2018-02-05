@@ -5,6 +5,7 @@
 #include <omp.h>
 
 #include "affinity.h"
+#include "util.h"
 
 int main(void) {
 
@@ -13,13 +14,7 @@ int main(void) {
 
     #pragma omp parallel
     {
-        auto cores = get_affinity();
-        std::stringstream s;
-        for(auto core: cores) {
-            s << std::setw(3) << core << " ";
-        }
-        auto thread_id = omp_get_thread_num();
-        strings[thread_id] = s.str();
+        strings[omp_get_thread_num()] = print_as_ranges(get_affinity());
     }
 
     for(auto i=0; i<num_threads; ++i) {

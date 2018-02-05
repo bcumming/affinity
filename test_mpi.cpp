@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "affinity.h"
+#include "util.h"
 
 void check_mpi_call(int status) {
     if(status!=MPI_SUCCESS) {
@@ -46,13 +47,7 @@ int main(int argc, char **argv) {
     }
     #pragma omp parallel
     {
-        auto cores = get_affinity();
-        std::stringstream s;
-        for(auto core: cores) {
-            s << std::setw(3) << core << " ";
-        }
-        auto thread_id = omp_get_thread_num();
-        strings[thread_id] = s.str();
+        strings[omp_get_thread_num()] = print_as_ranges(get_affinity());
     }
 
     std::stringstream s;
