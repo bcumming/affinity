@@ -16,10 +16,12 @@ struct alignas(8) uuid {
     }
 
     uuid(const uuid&) = default;
+    /*
     uuid(cudaUUID_t i) {
         const unsigned char* b = reinterpret_cast<const unsigned char*>(&i);
         std::copy(b, b+sizeof(cudaUUID_t), bytes.begin());
     }
+    */
 };
 
 // Test GPU uids for equality

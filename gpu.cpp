@@ -7,7 +7,7 @@
 
 #include <cuda_runtime.h>
 
-#if CUDART_VERSION > 10000
+#if CUDART_VERSION < 10000
     #define USE_NVML
     #include <nvml.h>
 #endif
@@ -18,7 +18,7 @@
 
 // Test GPU uids for equality
 bool operator==(const uuid& lhs, const uuid& rhs) {
-    for (auto i=0u; i<sizeof(cudaUUID_t); ++i) {
+    for (auto i=0u; i<lhs.bytes.size(); ++i) {
         if (lhs.bytes[i]!=rhs.bytes[i]) return false;
     }
     return true;
@@ -26,7 +26,7 @@ bool operator==(const uuid& lhs, const uuid& rhs) {
 
 // Strict lexographical ordering of GPU uids
 bool operator<(const uuid& lhs, const uuid& rhs) {
-    for (auto i=0u; i<sizeof(cudaUUID_t); ++i) {
+    for (auto i=0u; i<lhs.bytes.size(); ++i) {
         if (lhs.bytes[i]<rhs.bytes[i]) return true;
         if (lhs.bytes[i]>lhs.bytes[i]) return false;
     }
