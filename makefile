@@ -3,8 +3,8 @@ flags=-fopenmp -std=c++11
 CC=mpicxx
 
 # set this to the base path
-CUDAROOT=
-cudaflags=${flags} -L${CUDAROOT}/lib64 -I${CUDAROOT}/include -lcudart
+CUDAROOT=/opt/cuda
+cudaflags=${flags} -L${CUDAROOT}/lib64 -L${CUDAROOT}/nvvm/lib64 -I${CUDAROOT}/include -lcudart -lnvidia-ml
 
 all : test.omp test.mpi
 

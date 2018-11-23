@@ -8,8 +8,8 @@
 // 128 bit uuids are not just for GPUs: they are used in many applications, so
 // we call the type uuid, instead of a gpu-specific name.
 // uuids follow the most common storage format, which is big-endian.
-struct alignas(alignof(cudaUUID_t)) uuid {
-    std::array<unsigned char, sizeof(cudaUUID_t)> bytes;
+struct alignas(8) uuid {
+    std::array<unsigned char, 16> bytes;
 
     uuid() {
         std::fill(bytes.begin(), bytes.end(), 0);

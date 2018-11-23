@@ -1,12 +1,20 @@
 #include <algorithm>
 #include <array>
-#include <vector>
+#include <cstring>
 #include <iomanip>
 #include <ostream>
+#include <vector>
 
 #include <cuda_runtime.h>
 
+#if CUDART_VERSION > 10000
+    #define USE_NVML
+    #include <nvml.h>
+#endif
+
 #include "gpu.hpp"
+
+#include <iostream>
 
 // Test GPU uids for equality
 bool operator==(const uuid& lhs, const uuid& rhs) {
@@ -41,6 +49,40 @@ std::ostream& operator<<(std::ostream& o, const uuid& id) {
     return o;
 }
 
+uuid string_to_uuid(char* str) {
+    uuid result;
+    unsigned n = std::strlen(str);
+    if (n!=40) {
+        std::cout << "expected length 40 uuid string, got: " << n << "\n";
+        return result;
+    }
+
+    // Converts a single hex character, i.e. 0123456789abcdef, to int
+    // Assumes that input is a valid hex character.
+    auto hex_c2i = [](char c) -> unsigned char {
+        return std::isalpha(c)? c-'a'+10: c-'0';
+    };
+
+    // This removes the "GPU" from front of string, and the '-' hyphens:
+    //      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
+    // becomes
+    //      f1fd7811e4d34d54abb7efc579fb1e28
+    auto pos = std::remove_if(
+            str, str+n, [](char c){return !std::isxdigit(c);});
+    n = pos-str;
+
+    // null terminate the shortened string
+    str[n] = 0;
+
+    // convert pairs of characters into single bytes.
+    for (int i=0; i<16; ++i) {
+        const char* s = str+2*i;
+        result.bytes[i] = (hex_c2i(s[0])<<4) + hex_c2i(s[1]);
+    }
+
+    return result;
+}
+
 std::vector<uuid> get_gpu_uuids() {
     // get number of devices
     int ngpus = 0;
@@ -48,11 +90,26 @@ std::vector<uuid> get_gpu_uuids() {
 
     // store the uuids
     std::vector<uuid> uuids(ngpus);
+#ifdef USE_NVML
+    auto nvml_status = nvmlInit(); // TODO: can we init?
+    //std::cout << nvmlErrorString(nvml_status) << "\n";
+    char buffer[41];
+    for (int i=0; i<ngpus; ++i) {
+        // get handle of gpu with index i
+        nvmlDevice_t handle;
+        nvml_status = nvmlDeviceGetHandleByIndex(i, &handle); // TODO: can we get the GPU
+        // get uuid as a string with format GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        nvml_status =  nvmlDeviceGetUUID(handle, buffer, 128);
+        uuids[i] = string_to_uuid(buffer);
+    }
+    nvml_status = nvmlShutdown();
+#else
     for (int i=0; i<ngpus; ++i) {
         cudaDeviceProp props;
         auto status = cudaGetDeviceProperties(&props, i);
         uuids[i] = props.uuid;
     }
+#endif
 
     return uuids;
 }

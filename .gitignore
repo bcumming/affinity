@@ -14,6 +14,7 @@
 
 test.omp
 test.mpi
+test.cuda
 
 *.swp
 *.swn
