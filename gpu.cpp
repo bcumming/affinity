@@ -2,17 +2,17 @@
 #include <array>
 #include <cstring>
 #include <iomanip>
+#include <numeric>
 #include <ostream>
 #include <vector>
 
 #include <cuda_runtime.h>
 
-#if CUDART_VERSION < 10000
-    #define USE_NVML
+#include "gpu.hpp"
+
+#ifdef USE_NVML
     #include <nvml.h>
 #endif
-
-#include "gpu.hpp"
 
 #include <iostream>
 
@@ -49,13 +49,65 @@ std::ostream& operator<<(std::ostream& o, const uuid& id) {
     return o;
 }
 
+// Split CUDA_VISIBLE_DEVICES variable string into a list of integers.
+// The environment variable can have spaces, and the order is important:
+// i.e. "0,1" is not the same as "1,0".
+//      CUDA_VISIBLE_DEVICES="1,0"
+//      CUDA_VISIBLE_DEVICES="0, 1"
+// The CUDA run time parses the list until it finds an error, then returns
+// the partial list.
+// i.e.
+//      CUDA_VISIBLE_DEVICES="1, 0, hello" -> {1}
+//      CUDA_VISIBLE_DEVICES="hello, 1" -> {}
+// All non-numeric characters appear to be ignored:
+//      CUDA_VISIBLE_DEVICES="0a,1" -> {0,1}
+// This doesn't try too hard to check for all possible errors.
+std::vector<int> parse_visible_devices(std::string str, unsigned ngpu) {
+    // Tokenize into a sequence of strings separated by commas
+    std::vector<std::string> strings;
+    std::size_t first = 0;
+    std::size_t last = str.find(',');
+    while (last != std::string::npos) {
+        strings.push_back(str.substr(first, last - first));
+        first = last + 1;
+        last = str.find(',', first);
+    }
+    strings.push_back(str.substr(first, last - first));
+
+    // Convert each token to an integer.
+    // Return partial list of ids on first error:
+    //  - error converting token to string;
+    //  - invalid GPU id found.
+    std::vector<int> values;
+    for (auto& s: strings) {
+        try {
+            int v = std::stoi(s);
+            if (v<0 || v>=ngpu) break;
+            values.push_back(v);
+        }
+        catch (std::exception e) {
+            break;
+        }
+    }
+
+    return values;
+}
+
+// Take a uuid string with the format:
+//      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
+// And convert to a 16 byte sequence
+//
+// Assume that the intput string is correctly formatted.
 uuid string_to_uuid(char* str) {
     uuid result;
     unsigned n = std::strlen(str);
-    if (n!=40) {
-        std::cout << "expected length 40 uuid string, got: " << n << "\n";
-        return result;
-    }
+
+    // Remove the "GPU" from front of string, and the '-' hyphens, e.g.:
+    //      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
+    // becomes
+    //      f1fd7811e4d34d54abb7efc579fb1e28
+    auto pos = std::remove_if(
+            str, str+n, [](char c){return !std::isxdigit(c);});
 
     // Converts a single hex character, i.e. 0123456789abcdef, to int
     // Assumes that input is a valid hex character.
@@ -63,18 +115,7 @@ uuid string_to_uuid(char* str) {
         return std::isalpha(c)? c-'a'+10: c-'0';
     };
 
-    // This removes the "GPU" from front of string, and the '-' hyphens:
-    //      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
-    // becomes
-    //      f1fd7811e4d34d54abb7efc579fb1e28
-    auto pos = std::remove_if(
-            str, str+n, [](char c){return !std::isxdigit(c);});
-    n = pos-str;
-
-    // null terminate the shortened string
-    str[n] = 0;
-
-    // convert pairs of characters into single bytes.
+    // Convert pairs of characters into single bytes.
     for (int i=0; i<16; ++i) {
         const char* s = str+2*i;
         result.bytes[i] = (hex_c2i(s[0])<<4) + hex_c2i(s[1]);
@@ -83,36 +124,90 @@ uuid string_to_uuid(char* str) {
     return result;
 }
 
+
+#ifdef USE_NVML
+// On error of any kind, return an empty list.
+std::vector<uuid> get_gpu_uuids() {
+    // Get number of devices.
+    int ngpus = 0;
+    if (cudaGetDeviceCount(&ngpus)!=cudaSuccess) return {};
+
+    // Attempt to initialize nvml
+    if (nvmlInit()!=NVML_SUCCESS) return {};
+
+    // store the uuids
+    std::vector<uuid> uuids;
+
+    // find the number of available GPUs
+    unsigned count = -1;
+    if (nvmlDeviceGetCount(&count)!=NVML_SUCCESS) {
+        nvmlShutdown();
+        return {};
+    }
+
+    // Test if the environment variable CUDA_VISIBLE_DEVICES has been set.
+    const char* visible_device_env = std::getenv("CUDA_VISIBLE_DEVICES");
+    std::vector<int> device_ids;
+    // If set, attempt to parse the device ids from it.
+    if (visible_device_env) {
+        // Parse the gpu ids from the environment variable
+        device_ids = parse_visible_devices(visible_device_env, count);
+        if ((unsigned)ngpus != device_ids.size()) {
+            // Mismatch between device count detected by cuda runtime
+            // and that set in environment variable.
+            nvmlShutdown();
+            return {};
+        }
+    }
+    // Not set, so all devices must be available.
+    else {
+        device_ids.resize(count);
+        std::iota(device_ids.begin(), device_ids.end(), 0);
+    }
+
+    // For each device id, query NVML for the device's uuid.
+    for (int i: device_ids) {
+        char buffer[41];
+        // get handle of gpu with index i
+        nvmlDevice_t handle;
+        if (nvmlDeviceGetHandleByIndex(i, &handle)!=NVML_SUCCESS)
+            goto on_error;
+
+        // get uuid as a string with format GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        if (nvmlDeviceGetUUID(handle, buffer, sizeof(buffer))!=NVML_SUCCESS)
+            goto on_error;
+
+        uuids.push_back(string_to_uuid(buffer));
+    }
+    nvmlShutdown();
+
+    return uuids;
+
+on_error:
+    nvmlShutdown();
+    return {};
+}
+
+#else
+
 std::vector<uuid> get_gpu_uuids() {
     // get number of devices
     int ngpus = 0;
-    auto status = cudaGetDeviceCount(&ngpus);
+    if (cudaGetDeviceCount(&ngpus)!=cudaSuccess) return {};
 
     // store the uuids
     std::vector<uuid> uuids(ngpus);
-#ifdef USE_NVML
-    auto nvml_status = nvmlInit(); // TODO: can we init?
-    //std::cout << nvmlErrorString(nvml_status) << "\n";
-    char buffer[41];
-    for (int i=0; i<ngpus; ++i) {
-        // get handle of gpu with index i
-        nvmlDevice_t handle;
-        nvml_status = nvmlDeviceGetHandleByIndex(i, &handle); // TODO: can we get the GPU
-        // get uuid as a string with format GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-        nvml_status =  nvmlDeviceGetUUID(handle, buffer, 128);
-        uuids[i] = string_to_uuid(buffer);
-    }
-    nvml_status = nvmlShutdown();
-#else
+    // using CUDA 10 or later, determining uuid of GPUs is easy!
     for (int i=0; i<ngpus; ++i) {
         cudaDeviceProp props;
-        auto status = cudaGetDeviceProperties(&props, i);
+        if (cudaGetDeviceProperties(&props, i)!=cudaSuccess) return {};
         uuids[i] = props.uuid;
     }
-#endif
 
     return uuids;
 }
+
+#endif
 
 using uuid_range = std::pair<std::vector<uuid>::const_iterator,
                                std::vector<uuid>::const_iterator>;
@@ -126,6 +221,7 @@ std::ostream& operator<<(std::ostream& o, uuid_range rng) {
 }
 
 
+/*
 // Compare two sets of uuids
 //   1: both sets are identical
 //  -1: some common elements
@@ -200,4 +296,5 @@ gpu_rank assign_gpu(const std::vector<uuid>& uids,
     // some ranks will not be assigned a GPU (return -1).
     return pos_in_group<ngpu_in_group? gpu_rank(pos_in_group): gpu_rank(gpu_status::none);
 }
+*/
 

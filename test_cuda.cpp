@@ -36,7 +36,6 @@ int main(int argc, char **argv) {
     const int mpi_root = 0;
 
     auto hostname = get_hostname();
-
     auto gpus = get_gpu_uuids();
     auto num_gpus = gpus.size();
 
