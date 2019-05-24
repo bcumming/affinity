@@ -1,0 +1,21 @@
+# Object files
+*.o
+
+# Libraries
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.so
+*.so.*
+
+# Executables
+*.exe
+*.out
+
+test.omp
+test.mpi
+test.cuda
+
+*.swp
+*.swn
+*.swo
