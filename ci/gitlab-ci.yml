@@ -1,0 +1,20 @@
+stages:
+  - build
+  - test
+
+default:
+  image: ubuntu
+
+config-env:
+  stage: build
+
+build-test:
+  stage: build
+  before_script:
+    - apt-get update --yes
+    - apt-get install --yes cmake gcc g++ ninja
+  script:
+    - mkdir build
+    - cd build
+    - cmake .. -G Ninja
+    - ninja
