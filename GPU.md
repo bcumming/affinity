@@ -3,8 +3,6 @@
 The CUDA affinity test is for seeing which GPUs are visible to each rank in an MPI job.
 This is important when running on nodes with more than one GPU, because the user has to take care that GPUs are assigned to ranks in a sensible way for the application.
 
-The `makefile` must be editted to add the `CUDAROOT` path (and maybe to set the `CC` variable to point to the compiler wrapper on your system). For example: `CUDAROOT=/usr/local/cuda-10.0`.
-
 Then just:
 ```bash
 make test.cuda

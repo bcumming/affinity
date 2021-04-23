@@ -11,11 +11,13 @@
 # Executables
 *.exe
 *.out
-
-test.omp
-test.mpi
-test.cuda
+omp
+mpi
+gpu
 
 *.swp
 *.swn
 *.swo
+
+.cache
+build

@@ -10,10 +10,6 @@
 
 #include "gpu.hpp"
 
-#ifdef USE_NVML
-    #include <nvml.h>
-#endif
-
 #include <iostream>
 
 // Test GPU uids for equality
@@ -125,71 +121,6 @@ uuid string_to_uuid(char* str) {
 }
 
 
-#ifdef USE_NVML
-// On error of any kind, return an empty list.
-std::vector<uuid> get_gpu_uuids() {
-    // Get number of devices.
-    int ngpus = 0;
-    if (cudaGetDeviceCount(&ngpus)!=cudaSuccess) return {};
-
-    // Attempt to initialize nvml
-    if (nvmlInit()!=NVML_SUCCESS) return {};
-
-    // store the uuids
-    std::vector<uuid> uuids;
-
-    // find the number of available GPUs
-    unsigned count = -1;
-    if (nvmlDeviceGetCount(&count)!=NVML_SUCCESS) {
-        nvmlShutdown();
-        return {};
-    }
-
-    // Test if the environment variable CUDA_VISIBLE_DEVICES has been set.
-    const char* visible_device_env = std::getenv("CUDA_VISIBLE_DEVICES");
-    std::vector<int> device_ids;
-    // If set, attempt to parse the device ids from it.
-    if (visible_device_env) {
-        // Parse the gpu ids from the environment variable
-        device_ids = parse_visible_devices(visible_device_env, count);
-        if ((unsigned)ngpus != device_ids.size()) {
-            // Mismatch between device count detected by cuda runtime
-            // and that set in environment variable.
-            nvmlShutdown();
-            return {};
-        }
-    }
-    // Not set, so all devices must be available.
-    else {
-        device_ids.resize(count);
-        std::iota(device_ids.begin(), device_ids.end(), 0);
-    }
-
-    // For each device id, query NVML for the device's uuid.
-    for (int i: device_ids) {
-        char buffer[41];
-        // get handle of gpu with index i
-        nvmlDevice_t handle;
-        if (nvmlDeviceGetHandleByIndex(i, &handle)!=NVML_SUCCESS)
-            goto on_error;
-
-        // get uuid as a string with format GPU-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-        if (nvmlDeviceGetUUID(handle, buffer, sizeof(buffer))!=NVML_SUCCESS)
-            goto on_error;
-
-        uuids.push_back(string_to_uuid(buffer));
-    }
-    nvmlShutdown();
-
-    return uuids;
-
-on_error:
-    nvmlShutdown();
-    return {};
-}
-
-#else
-
 std::vector<uuid> get_gpu_uuids() {
     // get number of devices
     int ngpus = 0;
@@ -207,8 +138,6 @@ std::vector<uuid> get_gpu_uuids() {
     return uuids;
 }
 
-#endif
-
 using uuid_range = std::pair<std::vector<uuid>::const_iterator,
                                std::vector<uuid>::const_iterator>;
 
@@ -219,82 +148,3 @@ std::ostream& operator<<(std::ostream& o, uuid_range rng) {
     }
     return o << "]";
 }
-
-
-/*
-// Compare two sets of uuids
-//   1: both sets are identical
-//  -1: some common elements
-//   0: no common elements
-int compare_gpu_groups(uuid_range l, uuid_range r) {
-    auto range_size = [] (uuid_range rng) { return std::distance(rng.first, rng.second);};
-    if (range_size(l)<range_size(r)) {
-        std::swap(l, r);
-    }
-
-    unsigned count = 0;
-    for (auto it=l.first; it!=l.second; ++it) {
-        if (std::find(r.first, r.second, *it)!=r.second) ++count;
-    }
-
-    // test for complete match
-    if (count==range_size(l) && count==range_size(r)) return 1;
-    // test for partial match
-    if (count) return -1;
-    return 0;
-}
-
-gpu_rank assign_gpu(const std::vector<uuid>& uids,
-               const std::vector<int>&    uid_part,
-               int rank)
-{
-    // Determine the number of ranks in MPI communicator
-    auto nranks = uid_part.size()-1;
-
-    // Helper that generates the range of gpu id for rank i
-    auto make_group = [&] (int i) {
-        return uuid_range{uids.begin()+uid_part[i], uids.begin()+uid_part[i+1]};
-    };
-
-    // The list of ranks that share the same GPUs as this rank (including this rank).
-    std::vector<int> neighbors;
-
-    // Indicate if an invalid GPU partition was encountered.
-    bool error = false;
-
-    // The gpu uid range for this rank
-    auto local_gpus = make_group(rank);
-
-    // Find all ranks with the same set of GPUs as this rank.
-    for (std::size_t i=0; i<nranks; ++i) {
-        auto other_gpus = make_group(i);
-        auto match = compare_gpu_groups(local_gpus, other_gpus);
-        if (match==1) { // found a match
-            neighbors.push_back(i);
-        }
-        else if (match==-1) { // partial match, which is not permitted
-            error=true;
-            break;
-        }
-        // case where match==0 can be ignored.
-    }
-
-    if (error) {
-        return gpu_status::error;
-    }
-
-    // Determine the position of this rank in the sorted list of ranks.
-    auto pos_in_group =
-        std::distance(
-            neighbors.begin(),
-            std::find(neighbors.begin(), neighbors.end(), rank));
-
-    // The number of GPUs available to the ranks.
-    auto ngpu_in_group = std::distance(local_gpus.first, local_gpus.second);
-
-    // Assign GPUs to the first ngpu ranks. If there are more ranks than GPUs,
-    // some ranks will not be assigned a GPU (return -1).
-    return pos_in_group<ngpu_in_group? gpu_rank(pos_in_group): gpu_rank(gpu_status::none);
-}
-*/
-

@@ -4,10 +4,6 @@
 
 #include <cuda_runtime.h>
 
-#if CUDART_VERSION < 10000
-    #define USE_NVML
-#endif
-
 // Store cudaUUID_t in a byte array for easy type punning and comparison.
 // 128 bit uuids are not just for GPUs: they are used in many applications, so
 // we call the type uuid, instead of a gpu-specific name.
@@ -20,12 +16,11 @@ struct alignas(8) uuid {
     }
 
     uuid(const uuid&) = default;
-#ifndef USE_NVML
+
     uuid(cudaUUID_t i) {
         const unsigned char* b = reinterpret_cast<const unsigned char*>(&i);
         std::copy(b, b+sizeof(cudaUUID_t), bytes.begin());
     }
-#endif
 };
 
 // Test GPU uids for equality
