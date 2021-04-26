@@ -26,4 +26,5 @@ run-test:
   script:
     - echo '+++++++++++++++++++++++++++++++'
     - pwd
-    - ./affinity.omp
+    - ls -ahl
+    - ./build/affinity.omp
