@@ -17,3 +17,8 @@ build-test:
     - cd build
     - cmake .. -G Ninja
     - ninja
+
+  run-test:
+    stage: test
+    script:
+      - ./affinity.omp
