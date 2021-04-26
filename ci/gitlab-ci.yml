@@ -8,7 +8,7 @@ build-test:
   stage: build
   before_script:
     - apt-get update --yes
-    - apt-get install --yes cmake gcc g++ ninja
+    - apt-get install --yes cmake gcc g++ ninja-build
   script:
     - mkdir build
     - cd build
