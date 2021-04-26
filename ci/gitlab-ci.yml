@@ -13,6 +13,9 @@ build-test:
     - echo "b8c141bd7a6d335600ab0a8a35e75af79f95b837f736456b5532f4d717f20a09  cmake.tar.gz" | sha256sum --check
     - tar --strip-components=1 -xzf cmake.tar.gz -C /usr/local
   script:
+    - echo '+++++++++++++++++++++++++++++++'
+    - pwd
+    - ls /
     - mkdir build
     - cd build
     - cmake .. -G Ninja
