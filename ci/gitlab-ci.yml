@@ -23,7 +23,8 @@ build-test:
 
 run-test:
   stage: test
-  dependencies: build-test
+  dependencies:
+    - build-test
   script:
     - cd /build
     - ./affinity.omp
