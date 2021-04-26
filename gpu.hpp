@@ -39,23 +39,3 @@ std::ostream& operator<<(std::ostream& o, const uuid& id);
 // gpus available to this process.
 std::vector<uuid> get_gpu_uuids();
 
-enum class gpu_status {found, none, error};
-
-struct gpu_rank {
-    gpu_status status = gpu_status::none;
-    int id=-1;
-
-    gpu_rank(int id): id(id), status(gpu_status::found) {}
-    gpu_rank(gpu_status s): status(s) {}
-    gpu_rank() = delete;
-
-    // Returns true iff a GPU was found
-    operator bool() const {return status==gpu_status::found;}
-};
-
-// return values:
-//  -1        : unable to assign a GPU
-//  (0,n_gpu] : GPU assigned to this rank
-gpu_rank assign_gpu(const std::vector<uuid>& uids,
-               const std::vector<int>&    uid_part,
-               int rank);

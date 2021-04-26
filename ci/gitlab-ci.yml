@@ -1,12 +1,8 @@
+image: ubuntu
+
 stages:
   - build
   - test
-
-default:
-  image: ubuntu
-
-config-env:
-  stage: build
 
 build-test:
   stage: build

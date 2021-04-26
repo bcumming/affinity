@@ -53,7 +53,7 @@ std::ostream& operator<<(std::ostream& o, const uuid& id) {
 // The CUDA run time parses the list until it finds an error, then returns
 // the partial list.
 // i.e.
-//      CUDA_VISIBLE_DEVICES="1, 0, hello" -> {1}
+//      CUDA_VISIBLE_DEVICES="1, 0, hello" -> {1,0}
 //      CUDA_VISIBLE_DEVICES="hello, 1" -> {}
 // All non-numeric characters appear to be ignored:
 //      CUDA_VISIBLE_DEVICES="0a,1" -> {0,1}
