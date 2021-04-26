@@ -8,7 +8,10 @@ build-test:
   stage: build
   before_script:
     - apt-get update --yes
-    - apt-get install --yes cmake gcc g++ ninja-build
+    - apt-get install --yes gcc g++ ninja-build wget
+    - wget -q https://github.com/Kitware/CMake/releases/download/v3.20.1/cmake-3.20.1-linux-x86_64.tar.gz -O cmake.tar.gz
+    - echo "b8c141bd7a6d335600ab0a8a35e75af79f95b837f736456b5532f4d717f20a09  cmake.tar.gz" | sha256sum --check
+    - tar --strip-components=1 -xzf cmake.tar.gz -C /usr/local
   script:
     - mkdir build
     - cd build
