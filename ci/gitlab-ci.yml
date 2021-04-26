@@ -24,4 +24,6 @@ build-test:
 run-test:
   stage: test
   script:
+    - echo '+++++++++++++++++++++++++++++++'
+    - pwd
     - ./affinity.omp
