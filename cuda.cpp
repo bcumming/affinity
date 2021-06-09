@@ -9,7 +9,7 @@
 
 void check_mpi_call(int status) {
     if(status!=MPI_SUCCESS) {
-        std::cerr << "error in MPI" << std::endl;
+        std::cerr << "Error in MPI" << std::endl;
         exit(1);
     }
 }
@@ -18,7 +18,7 @@ std::string get_hostname() {
     const int maxlen = 128;
     char name[maxlen];
     if( gethostname(name, maxlen) ) {
-        std::cerr << "error finding host name" << std::endl;
+        std::cerr << "Error finding host name" << std::endl;
         exit(1);
     }
 
