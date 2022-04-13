@@ -1,91 +1,150 @@
+#include <algorithm>
+#include <array>
+#include <cstring>
 #include <iomanip>
+#include <numeric>
+#include <ostream>
+#include <vector>
+
+#include <cuda_runtime.h>
+
+#include "cuda.hpp"
+
 #include <iostream>
-#include <sstream>
 
-#include <mpi.h>
-#include <unistd.h>
-
-#include "gpu.hpp"
-
-void check_mpi_call(int status) {
-    if(status!=MPI_SUCCESS) {
-        std::cerr << "Error in MPI" << std::endl;
-        exit(1);
+// Test GPU uids for equality
+bool operator==(const uuid& lhs, const uuid& rhs) {
+    for (auto i=0u; i<lhs.bytes.size(); ++i) {
+        if (lhs.bytes[i]!=rhs.bytes[i]) return false;
     }
+    return true;
 }
 
-std::string get_hostname() {
-    const int maxlen = 128;
-    char name[maxlen];
-    if( gethostname(name, maxlen) ) {
-        std::cerr << "Error finding host name" << std::endl;
-        exit(1);
+// Strict lexographical ordering of GPU uids
+bool operator<(const uuid& lhs, const uuid& rhs) {
+    for (auto i=0u; i<lhs.bytes.size(); ++i) {
+        if (lhs.bytes[i]<rhs.bytes[i]) return true;
+        if (lhs.bytes[i]>lhs.bytes[i]) return false;
     }
-
-    return std::string(name);
+    return false;
 }
 
-int main(int argc, char **argv) {
+std::ostream& operator<<(std::ostream& o, const uuid& id) {
+    o << std::hex << std::setfill('0');
 
-    check_mpi_call( MPI_Init(&argc, &argv));
-
-    int mpi_rank;
-    int mpi_size;
-    check_mpi_call( MPI_Comm_size(MPI_COMM_WORLD, &mpi_size));
-    check_mpi_call( MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank));
-    const int mpi_root = 0;
-
-    auto hostname = get_hostname();
-    auto gpus = get_gpu_uuids();
-    auto num_gpus = gpus.size();
-
-    if(mpi_rank==mpi_root) {
-        std::cout << "GPU affinity test for " << mpi_size << " MPI ranks\n";
+    bool first = true;
+    int ranges[6] = {0, 4, 6, 8, 10, 16};
+    for (int i=0; i<5; ++i) { // because std::size isn't available till C++17
+        if (!first) o << "-";
+        for (auto j=ranges[i]; j<ranges[i+1]; ++j) {
+            o << std::setw(2) << (int)id.bytes[j];
+        }
+        first = false;
     }
+    o << std::dec;
+    return o;
+}
 
-    std::stringstream s;
-    s << "rank " << std::setw(6) << mpi_rank << " @ " << hostname;
-    if(num_gpus==1) {
-        s << " : GPU-" << gpus[0] << "\n";
+// Split CUDA_VISIBLE_DEVICES variable string into a list of integers.
+// The environment variable can have spaces, and the order is important:
+// i.e. "0,1" is not the same as "1,0".
+//      CUDA_VISIBLE_DEVICES="1,0"
+//      CUDA_VISIBLE_DEVICES="0, 1"
+// The CUDA run time parses the list until it finds an error, then returns
+// the partial list.
+// i.e.
+//      CUDA_VISIBLE_DEVICES="1, 0, hello" -> {1,0}
+//      CUDA_VISIBLE_DEVICES="hello, 1" -> {}
+// All non-numeric characters appear to be ignored:
+//      CUDA_VISIBLE_DEVICES="0a,1" -> {0,1}
+// This doesn't try too hard to check for all possible errors.
+std::vector<int> parse_visible_devices(std::string str, unsigned ngpu) {
+    // Tokenize into a sequence of strings separated by commas
+    std::vector<std::string> strings;
+    std::size_t first = 0;
+    std::size_t last = str.find(',');
+    while (last != std::string::npos) {
+        strings.push_back(str.substr(first, last - first));
+        first = last + 1;
+        last = str.find(',', first);
     }
-    else {
-        s << "\n";
-        for(auto i=0; i<num_gpus; ++i) {
-            s << " gpu " << std::setfill(' ') << std::setw(3) << i
-              << " : GPU-" << gpus[i]
-              << "\n";
+    strings.push_back(str.substr(first, last - first));
+
+    // Convert each token to an integer.
+    // Return partial list of ids on first error:
+    //  - error converting token to string;
+    //  - invalid GPU id found.
+    std::vector<int> values;
+    for (auto& s: strings) {
+        try {
+            int v = std::stoi(s);
+            if (v<0 || v>=ngpu) break;
+            values.push_back(v);
+        }
+        catch (std::exception e) {
+            break;
         }
     }
-    auto message = s.str();
-    // add 1 for the terminating \0
-    int message_length = message.size() + 1;
 
-    std::vector<int> message_lengths(mpi_size);
-    check_mpi_call(
-        MPI_Gather( &message_length,     1, MPI_INT,
-                    &message_lengths[0], 1, MPI_INT,
-                    mpi_root, MPI_COMM_WORLD)
-    );
-
-    if(mpi_rank==mpi_root) {
-        std::cout << message;
-        for(auto i=1; i<mpi_size; ++i) {
-            std::vector<char> remote_msg(message_lengths[i]);
-            MPI_Status status;
-            check_mpi_call(
-                MPI_Recv( &remote_msg[0], message_lengths[i], MPI_CHAR,
-                          i, i, MPI_COMM_WORLD, &status)
-            );
-            std::cout << &remote_msg[0];
-        }
-    }
-    else {
-        check_mpi_call(
-            MPI_Send( message.c_str(), message_length, MPI_CHAR,
-                      mpi_root, mpi_rank, MPI_COMM_WORLD)
-        );
-    }
-
-    MPI_Finalize();
+    return values;
 }
 
+// Take a uuid string with the format:
+//      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
+// And convert to a 16 byte sequence
+//
+// Assume that the intput string is correctly formatted.
+uuid string_to_uuid(char* str) {
+    uuid result;
+    unsigned n = std::strlen(str);
+
+    // Remove the "GPU" from front of string, and the '-' hyphens, e.g.:
+    //      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
+    // becomes
+    //      f1fd7811e4d34d54abb7efc579fb1e28
+    auto pos = std::remove_if(
+            str, str+n, [](char c){return !std::isxdigit(c);});
+
+    // Converts a single hex character, i.e. 0123456789abcdef, to int
+    // Assumes that input is a valid hex character.
+    auto hex_c2i = [](char c) -> unsigned char {
+        return std::isalpha(c)? c-'a'+10: c-'0';
+    };
+
+    // Convert pairs of characters into single bytes.
+    for (int i=0; i<16; ++i) {
+        const char* s = str+2*i;
+        result.bytes[i] = (hex_c2i(s[0])<<4) + hex_c2i(s[1]);
+    }
+
+    return result;
+}
+
+
+std::vector<uuid> get_gpu_uuids() {
+    // get number of devices
+    int ngpus = 0;
+    if (cudaGetDeviceCount(&ngpus)!=cudaSuccess) return {};
+
+    // store the uuids
+    std::vector<uuid> uuids(ngpus);
+    // using CUDA 10 or later, determining uuid of GPUs is easy!
+    for (int i=0; i<ngpus; ++i) {
+        cudaDeviceProp props;
+        if (cudaGetDeviceProperties(&props, i)!=cudaSuccess) return {};
+        uuids[i] = props.uuid;
+    }
+
+    return uuids;
+}
+
+using uuid_range = std::pair<std::vector<uuid>::const_iterator,
+                               std::vector<uuid>::const_iterator>;
+
+std::ostream& operator<<(std::ostream& o, uuid_range rng) {
+    o << "[";
+    for (auto i=rng.first; i!=rng.second; ++i) {
+        o << " " << int(i->bytes[0]);
+    }
+    return o << "]";
+}

@@ -45,7 +45,7 @@ std::string print_as_ranges(std::vector<int> v) {
     auto it = v.begin();
     while (it != v.end()) {
         if (!first) {
-            s << ", ";
+            s << ",";
         }
         first = false;
         auto pos = it; 
@@ -57,10 +57,10 @@ std::string print_as_ranges(std::vector<int> v) {
         auto dist = std::distance(pos, it);
         if (dist>1u) {
             if (delta>1) {
-                s << ":" << delta << ":" << *it;
+                s << "-" << delta << "-" << *it;
             }
             else {
-                s << ":" << *it;
+                s << "-" << *it;
             }
         }
 
