@@ -45,7 +45,7 @@ else()
 endif()
 
 if (ROCM)
-    set(SMI_PATH "${ROCM_PATH}/rocm_smi")
+    set(SMI_PATH "${ROCM_PATH}")
     set(HIP_PATH "${ROCM_PATH}/hip")
     add_executable(affinity.rocm gpu.cpp rocm.cpp)
     target_compile_definitions(affinity.rocm PRIVATE __HIP_PLATFORM_AMD__)
