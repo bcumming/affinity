@@ -46,14 +46,14 @@ endif()
 
 if (ROCM)
     find_package(rocm_smi REQUIRED PATHS "${ROCM_PATH}/lib/cmake/rocm_smi")
-    set(HIP_PATH "${ROCM_PATH}/hip")
+    find_package(hip REQUIRED PATHS "${ROCM_PATH}/lib/cmake/hip")
     add_executable(affinity.rocm gpu.cpp rocm.cpp)
     target_compile_definitions(affinity.rocm PRIVATE __HIP_PLATFORM_AMD__)
     target_compile_definitions(affinity.rocm PRIVATE AFFINITY_ROCM)
-    target_include_directories(affinity.rocm PRIVATE "${ROCM_SMI_INCLUDE_DIR}" "${HIP_PATH}/include")
+    target_include_directories(affinity.rocm PRIVATE "${ROCM_SMI_INCLUDE_DIR}" "${HIP_INCLUDE_DIR}")
     target_link_libraries(affinity.rocm PRIVATE OpenMP::OpenMP_CXX MPI::MPI_CXX)
     target_link_libraries(affinity.rocm PRIVATE ${ROCM_SMI_LIBRARIES})
-    target_link_libraries(affinity.rocm PRIVATE -L${HIP_PATH}/lib -lamdhip64)
+    target_link_libraries(affinity.rocm PRIVATE ${HIP_LIBRARIES})
 endif()
 
 # Install rules
