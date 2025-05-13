@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.21)
 project(affinity)
 
 # Generate a json file with compilation commands for each file
@@ -53,7 +53,7 @@ if (ROCM)
     target_include_directories(affinity.rocm PRIVATE "${ROCM_SMI_INCLUDE_DIR}" "${HIP_INCLUDE_DIR}")
     target_link_libraries(affinity.rocm PRIVATE OpenMP::OpenMP_CXX MPI::MPI_CXX)
     target_link_libraries(affinity.rocm PRIVATE ${ROCM_SMI_LIBRARIES})
-    target_link_libraries(affinity.rocm PRIVATE ${HIP_LIBRARIES})
+    target_link_libraries(affinity.rocm PRIVATE hip::host)
 endif()
 
 # Install rules
