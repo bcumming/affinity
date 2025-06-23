@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.21)
 project(affinity)
 
 # Generate a json file with compilation commands for each file
@@ -45,15 +45,15 @@ else()
 endif()
 
 if (ROCM)
-    set(SMI_PATH "${ROCM_PATH}/rocm_smi")
-    set(HIP_PATH "${ROCM_PATH}/hip")
+    find_package(rocm_smi REQUIRED PATHS "${ROCM_PATH}/lib/cmake/rocm_smi")
+    find_package(hip REQUIRED PATHS "${ROCM_PATH}/lib/cmake/hip")
     add_executable(affinity.rocm gpu.cpp rocm.cpp)
     target_compile_definitions(affinity.rocm PRIVATE __HIP_PLATFORM_AMD__)
     target_compile_definitions(affinity.rocm PRIVATE AFFINITY_ROCM)
-    target_include_directories(affinity.rocm PRIVATE "${SMI_PATH}/include/" "${HIP_PATH}/include")
+    target_include_directories(affinity.rocm PRIVATE "${ROCM_SMI_INCLUDE_DIR}" "${HIP_INCLUDE_DIR}")
     target_link_libraries(affinity.rocm PRIVATE OpenMP::OpenMP_CXX MPI::MPI_CXX)
-    target_link_libraries(affinity.rocm PRIVATE -L${SMI_PATH}/lib -lrocm_smi64)
-    target_link_libraries(affinity.rocm PRIVATE -L${HIP_PATH}/lib -lamdhip64)
+    target_link_libraries(affinity.rocm PRIVATE ${ROCM_SMI_LIBRARIES})
+    target_link_libraries(affinity.rocm PRIVATE hip::host)
 endif()
 
 # Install rules
