@@ -53,24 +53,13 @@ int main(int argc, char** argv) {
     const auto strings = consolidate(cores);
 
     std::stringstream s;
-    s << "rank " << std::setw(6) << mpi_rank << " @ " << hostname;
-    /*
-    if (num_threads == 1) {
-        s << " on cores [" << strings[0] << "]" << std::endl;
-    } else {
-        s << std::endl;
-        for (auto i = 0; i < num_threads; ++i) {
-            s << "  thread " << std::setw(3) << i << " on cores [" << strings[i]
-              << "]" << std::endl;
-        }
-    }
-    */
-    if (strings.size() == 0) {
+    s << "rank " << std::setw(3) << mpi_rank << " @ " << hostname;
+    if (strings.size() == 1) {
         s << ": " << strings[0] << std::endl;
     } else {
         s << std::endl;
         for (auto& str : strings) {
-            s << str << std::endl;
+            s << "  " << str << std::endl;
         }
     }
     auto message = s.str();
