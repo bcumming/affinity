@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
     s << "rank " << std::setw(6) << mpi_rank << " @ " << hostname << "\n";
 
     // print condensed summary of cpu affinity
-    s << " cores   : " << print_as_ranges(all_cores) << "\n";
+    s << " cores   : " << print_range(all_cores, 0) << "\n";
 
     // print gpu identification one per line
     for (auto i = 0; i < num_gpus; ++i) {

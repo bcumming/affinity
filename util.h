@@ -1,7 +1,6 @@
 #pragma once
 
-#include <algorithm>
-#include <sstream>
+#include <string>
 #include <vector>
 
 // Simple greedy algorithm that prints a sequence of integers as a set of
@@ -31,6 +30,6 @@
 //
 // {0, 1, 1, 13, 12, 3, 2, 2}
 // 0:3, 12, 13
+std::string print_range(std::vector<int> v, int width = 3);
 
-std::string print_as_ranges(std::vector<int> v);
 std::vector<std::string> consolidate(std::vector<std::vector<int>> affinities);
