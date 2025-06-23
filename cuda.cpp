@@ -2,7 +2,6 @@
 #include <array>
 #include <cstring>
 #include <iomanip>
-#include <numeric>
 #include <ostream>
 #include <vector>
 
@@ -14,17 +13,20 @@
 
 // Test GPU uids for equality
 bool operator==(const uuid& lhs, const uuid& rhs) {
-    for (auto i=0u; i<lhs.bytes.size(); ++i) {
-        if (lhs.bytes[i]!=rhs.bytes[i]) return false;
+    for (auto i = 0u; i < lhs.bytes.size(); ++i) {
+        if (lhs.bytes[i] != rhs.bytes[i])
+            return false;
     }
     return true;
 }
 
 // Strict lexographical ordering of GPU uids
 bool operator<(const uuid& lhs, const uuid& rhs) {
-    for (auto i=0u; i<lhs.bytes.size(); ++i) {
-        if (lhs.bytes[i]<rhs.bytes[i]) return true;
-        if (lhs.bytes[i]>lhs.bytes[i]) return false;
+    for (auto i = 0u; i < lhs.bytes.size(); ++i) {
+        if (lhs.bytes[i] < rhs.bytes[i])
+            return true;
+        if (lhs.bytes[i] > lhs.bytes[i])
+            return false;
     }
     return false;
 }
@@ -34,9 +36,11 @@ std::ostream& operator<<(std::ostream& o, const uuid& id) {
 
     bool first = true;
     int ranges[6] = {0, 4, 6, 8, 10, 16};
-    for (int i=0; i<5; ++i) { // because std::size isn't available till C++17
-        if (!first) o << "-";
-        for (auto j=ranges[i]; j<ranges[i+1]; ++j) {
+    for (int i = 0; i < 5;
+         ++i) { // because std::size isn't available till C++17
+        if (!first)
+            o << "-";
+        for (auto j = ranges[i]; j < ranges[i + 1]; ++j) {
             o << std::setw(2) << (int)id.bytes[j];
         }
         first = false;
@@ -75,13 +79,13 @@ std::vector<int> parse_visible_devices(std::string str, unsigned ngpu) {
     //  - error converting token to string;
     //  - invalid GPU id found.
     std::vector<int> values;
-    for (auto& s: strings) {
+    for (auto& s : strings) {
         try {
             int v = std::stoi(s);
-            if (v<0 || v>=ngpu) break;
+            if (v < 0 || v >= ngpu)
+                break;
             values.push_back(v);
-        }
-        catch (std::exception e) {
+        } catch (std::exception e) {
             break;
         }
     }
@@ -102,36 +106,37 @@ uuid string_to_uuid(char* str) {
     //      GPU-f1fd7811-e4d3-4d54-abb7-efc579fb1e28
     // becomes
     //      f1fd7811e4d34d54abb7efc579fb1e28
-    auto pos = std::remove_if(
-            str, str+n, [](char c){return !std::isxdigit(c);});
+    auto pos =
+        std::remove_if(str, str + n, [](char c) { return !std::isxdigit(c); });
 
     // Converts a single hex character, i.e. 0123456789abcdef, to int
     // Assumes that input is a valid hex character.
     auto hex_c2i = [](char c) -> unsigned char {
-        return std::isalpha(c)? c-'a'+10: c-'0';
+        return std::isalpha(c) ? c - 'a' + 10 : c - '0';
     };
 
     // Convert pairs of characters into single bytes.
-    for (int i=0; i<16; ++i) {
-        const char* s = str+2*i;
-        result.bytes[i] = (hex_c2i(s[0])<<4) + hex_c2i(s[1]);
+    for (int i = 0; i < 16; ++i) {
+        const char* s = str + 2 * i;
+        result.bytes[i] = (hex_c2i(s[0]) << 4) + hex_c2i(s[1]);
     }
 
     return result;
 }
 
-
 std::vector<uuid> get_gpu_uuids() {
     // get number of devices
     int ngpus = 0;
-    if (cudaGetDeviceCount(&ngpus)!=cudaSuccess) return {};
+    if (cudaGetDeviceCount(&ngpus) != cudaSuccess)
+        return {};
 
     // store the uuids
     std::vector<uuid> uuids(ngpus);
     // using CUDA 10 or later, determining uuid of GPUs is easy!
-    for (int i=0; i<ngpus; ++i) {
+    for (int i = 0; i < ngpus; ++i) {
         cudaDeviceProp props;
-        if (cudaGetDeviceProperties(&props, i)!=cudaSuccess) return {};
+        if (cudaGetDeviceProperties(&props, i) != cudaSuccess)
+            return {};
         uuids[i] = props.uuid;
     }
 
@@ -139,11 +144,11 @@ std::vector<uuid> get_gpu_uuids() {
 }
 
 using uuid_range = std::pair<std::vector<uuid>::const_iterator,
-                               std::vector<uuid>::const_iterator>;
+                             std::vector<uuid>::const_iterator>;
 
 std::ostream& operator<<(std::ostream& o, uuid_range rng) {
     o << "[";
-    for (auto i=rng.first; i!=rng.second; ++i) {
+    for (auto i = rng.first; i != rng.second; ++i) {
         o << " " << int(i->bytes[0]);
     }
     return o << "]";

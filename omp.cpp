@@ -10,16 +10,22 @@
 int main(void) {
 
     auto num_threads = omp_get_max_threads();
-    std::vector<std::string> strings(num_threads);
+    std::vector<std::vector<int>> cores(num_threads);
 
-    #pragma omp parallel
+#pragma omp parallel
     {
-        strings[omp_get_thread_num()] = print_as_ranges(get_affinity());
+        cores[omp_get_thread_num()] = get_affinity();
     }
 
-    for(auto i=0; i<num_threads; ++i) {
-        std::cout << "thread " << std::setw(3) << i
-                  << " on cores [" << strings[i] << "]"
-                  << std::endl;
+    const auto strings = consolidate(cores);
+
+    /*
+    for (auto i = 0; i < num_threads; ++i) {
+        std::cout << "thread " << std::setw(3) << i << " on cores ["
+                  << strings[i] << "]" << std::endl;
+    }
+    */
+    for (auto& s : strings) {
+        std::cout << s << std::endl;
     }
 }
