@@ -9,6 +9,13 @@
 #include "affinity.h"
 #include "util.h"
 
+const char * usage =
+"affinity.mpi - for evaluating thread and MPI rank affinity\n"
+"\n"
+"Usage: affinity.mpi [--omp]\n"
+"\n"
+"  --omp     print affinity of each thread"
+"\n";
 void check_mpi_call(int status) {
     if (status != MPI_SUCCESS) {
         std::cerr << "error in MPI" << std::endl;
@@ -36,19 +43,47 @@ int main(int argc, char** argv) {
     check_mpi_call(MPI_Comm_size(MPI_COMM_WORLD, &mpi_size));
     check_mpi_call(MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank));
     const int mpi_root = 0;
+    bool use_openmp=false;
+
+    if (argc<2) {}
+    else if (argc==2) {
+        if (argv[1]==std::string("--omp")) {
+            use_openmp=true;
+        }
+        else {
+            if (mpi_root==mpi_rank) {
+                std::cout << usage;
+                std::cerr << "\nERROR unexpected argument '" << argv[1] << "'\n";
+            }
+            return 1;
+        }
+    }
+    else {
+        if (mpi_root==mpi_rank) {
+            std::cout << usage;
+            std::cerr << "\nERROR unexpected arguments\n";
+        }
+        return 1;
+    }
 
     auto hostname = get_hostname();
 
-    auto num_threads = omp_get_max_threads();
-    std::vector<std::vector<int>> cores(num_threads);
+    std::vector<std::vector<int>> cores;
 
     if (mpi_rank == mpi_root) {
         std::cout << "affinity test for " << mpi_size << " MPI ranks"
                   << std::endl;
     }
-#pragma omp parallel
-    {
-        cores[omp_get_thread_num()] = get_affinity();
+    if (use_openmp) {
+        auto num_threads = omp_get_max_threads();
+        cores.resize(num_threads);
+        #pragma omp parallel
+        {
+            cores[omp_get_thread_num()] = get_affinity();
+        }
+    }
+    else {
+        cores.push_back(get_affinity());
     }
     const auto strings = consolidate(cores);
 
