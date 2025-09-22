@@ -14,7 +14,7 @@ CMake is used to configure the build.
 
 * `-DAFFINITY_MPI=[on,off]`: enable MPI support
     * default: `on`
-* `-DAFFINITY_GPU=[none,cuda,rocm]`: enable a GPU backend
+* `-DAFFINITY_GPU_BACKEND=[none,cuda,rocm]`: enable a GPU backend
     * default: `none`
     * GPU backends require MPI support
 
@@ -27,5 +27,5 @@ CC=gcc CXX=g++ cmake $source_path -DAFFINITY_MPI=off
 CC=gcc CXX=g++ cmake $source_path
 
 # build with cuda support
-CC=gcc CXX=g++ cmake $source_path -DAFFINITY_GPU=cuda
+CC=gcc CXX=g++ cmake $source_path -DAFFINITY_GPU_BACKEND=cuda
 ```
